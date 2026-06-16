@@ -59,7 +59,6 @@ async function callAnthropic(model, system, userText, maxTokens) {
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
-      temperature: 0.5,
       system,
       messages: [{ role: "user", content: userText }],
     }),
