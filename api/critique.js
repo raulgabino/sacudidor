@@ -17,7 +17,7 @@ Haz lo siguiente, de forma directa y concreta:
 - Detecta posibles sesgos, confusiones causa-efecto o variables de confusión.
 - Propón cómo se podría poner a prueba o falsar la hipótesis.
 
-Responde en español, en 1 o 2 párrafos. Sé honesto y exigente, pero constructivo. No endulces la crítica ni repitas la hipótesis al inicio: ve directo al análisis. Mantén tu propio estilo natural de razonamiento.`;
+Responde en español en UN solo párrafo breve, de MÁXIMO 90 palabras (no te pases de 90). Ve directo a lo más importante: el supuesto o la falla principal, y una forma concreta de ponerla a prueba. Sé honesto y exigente pero constructivo; no repitas la hipótesis al inicio. Mantén tu propio estilo natural.`;
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
   try {
     let text;
     if (model === "claude") {
-      text = await callAnthropic(MODELS.claude, SYSTEM_PROMPT, hypothesis);
+      text = await callAnthropic(MODELS.claude, SYSTEM_PROMPT, hypothesis, 300);
     } else if (model === "deepseek") {
       text = await callOpenAICompatible(
         "https://api.deepseek.com/chat/completions",
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
         MODELS.deepseek,
         SYSTEM_PROMPT,
         hypothesis,
-        { temperature: 0.7, max_tokens: 700 }
+        { temperature: 0.7, max_tokens: 300 }
       );
     } else if (model === "gpt") {
       text = await callOpenAICompatible(
@@ -84,7 +84,6 @@ export async function callAnthropic(model, system, userText, maxTokens = 700) {
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
-      temperature: 0.7,
       system,
       messages: [{ role: "user", content: userText }],
     }),
