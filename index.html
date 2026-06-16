@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sacudidor de Hipótesis</title>
+<style>
+  :root{
+    --bg:#faf9f6; --card:#ffffff; --ink:#1f1d1a; --muted:#6b6760; --hint:#9b958c;
+    --line:#e7e3da;
+    --claude-bg:#FAECE7; --claude-ink:#712B13;
+    --deepseek-bg:#E6F1FB; --deepseek-ink:#0C447C;
+    --gpt-bg:#E1F5EE; --gpt-ink:#085041;
+    --accent:#1f1d1a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:18px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1320px;margin:0 auto;padding:28px 28px 60px;}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+  h1{font-size:34px;font-weight:600;margin:0;letter-spacing:.3px;}
+  .sub{color:var(--hint);font-size:16px;margin-top:2px;}
+  .access{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);}
+  .access input{font-size:14px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;width:150px;background:var(--card);}
+  /* Caja de hipótesis */
+  .hbox{background:#f2efe8;border-radius:16px;padding:20px 22px;margin-bottom:18px;}
+  .hbox label{display:block;font-size:14px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px;}
+  textarea{width:100%;min-height:90px;font-size:22px;line-height:1.5;color:var(--ink);
+    border:1px solid var(--line);border-radius:12px;padding:14px 16px;resize:vertical;background:#fff;font-family:inherit;}
+  textarea:focus{outline:none;border-color:#c9c3b8;box-shadow:0 0 0 3px rgba(0,0,0,.05);}
+  .actions{display:flex;justify-content:center;gap:14px;margin-top:16px;flex-wrap:wrap;}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:12px;font-weight:600;transition:transform .08s ease,opacity .2s ease,background .2s ease;}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .btn-primary{background:var(--accent);color:#fff;font-size:22px;padding:14px 40px;}
+  .btn-primary:hover:not(:disabled){background:#000}
+  .btn-second{background:#fff;color:var(--ink);border:1.5px solid var(--line);font-size:17px;padding:11px 24px;}
+  .btn-second:hover:not(:disabled){border-color:#bdb6aa}
+  /* Sacudida */
+  @keyframes shake{0%,100%{transform:translateX(0)}12%{transform:translateX(-10px) rotate(-.7deg)}24%{transform:translateX(10px) rotate(.7deg)}38%{transform:translateX(-8px)}52%{transform:translateX(8px)}68%{transform:translateX(-4px)}84%{transform:translateX(4px)}}
+  .shaking{animation:shake .6s ease-in-out}
+  /* Columnas */
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px;}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+  .col{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;min-height:160px;}
+  .col h2{margin:0;font-size:18px;font-weight:600;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .col.claude h2{background:var(--claude-bg);color:var(--claude-ink);}
+  .col.deepseek h2{background:var(--deepseek-bg);color:var(--deepseek-ink);}
+  .col.gpt h2{background:var(--gpt-bg);color:var(--gpt-ink);}
+  .time{font-size:13px;font-weight:500;opacity:.75;}
+  .body{padding:16px;font-size:18px;line-height:1.6;color:#33302b;white-space:pre-wrap;flex:1;}
+  .body.placeholder{color:var(--hint);}
+  .err{color:#a3251f;}
+  /* Spinner */
+  .dots span{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;background:currentColor;opacity:.4;animation:blink 1.2s infinite both;}
+  .dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+  /* Síntesis */
+  .synth{margin-top:20px;border:1.5px solid #d8d2c6;border-radius:16px;background:#f6f3ec;padding:18px 22px;display:none;}
+  .synth.show{display:block;animation:fade .4s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .synth h3{margin:0 0 10px;font-size:18px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;}
+  .synth .body{padding:0;font-size:19px;}
+  .foot{text-align:center;color:var(--hint);font-size:13px;margin-top:28px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Sacudidor de hipótesis</h1>
+      <div class="sub">Una hipótesis · tres modelos · el mismo reto</div>
+    </div>
+    <label class="access">Código:
+      <input id="access" type="password" placeholder="(si aplica)" autocomplete="off" />
+    </label>
+  </header>
+
+  <div class="hbox" id="hbox">
+    <label>Hipótesis del estudiante</label>
+    <textarea id="hyp" placeholder="Escribe o pega aquí la hipótesis..."></textarea>
+    <div class="actions">
+      <button class="btn-primary" id="shakeBtn">⚡ Sacudir</button>
+      <button class="btn-second" id="compareBtn" disabled>Comparar respuestas</button>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="col claude">
+      <h2><span>Claude Sonnet 4.6</span><span class="time" id="t-claude"></span></h2>
+      <div class="body placeholder" id="b-claude">Aún sin sacudir.</div>
+    </div>
+    <div class="col deepseek">
+      <h2><span>DeepSeek V4</span><span class="time" id="t-deepseek"></span></h2>
+      <div class="body placeholder" id="b-deepseek">Aún sin sacudir.</div>
+    </div>
+    <div class="col gpt">
+      <h2><span>GPT-5.4 mini</span><span class="time" id="t-gpt"></span></h2>
+      <div class="body placeholder" id="b-gpt">Aún sin sacudir.</div>
+    </div>
+  </div>
+
+  <div class="synth" id="synth">
+    <h3>Dónde coinciden y dónde chocan · Opus 4.8</h3>
+    <div class="body" id="b-synth"></div>
+  </div>
+
+  <div class="foot">Las respuestas llegan en vivo desde cada API. Las claves están protegidas en el servidor.</div>
+</div>
+
+<script>
+  const MODELS = ["claude","deepseek","gpt"];
+  const hyp = document.getElementById("hyp");
+  const hbox = document.getElementById("hbox");
+  const shakeBtn = document.getElementById("shakeBtn");
+  const compareBtn = document.getElementById("compareBtn");
+  const accessInput = document.getElementById("access");
+  const synth = document.getElementById("synth");
+  const lastResponses = {};
+
+  // Recordar el código de acceso entre usos (solo en este navegador).
+  try { accessInput.value = localStorage.getItem("sacudidor_code") || ""; } catch(e){}
+  accessInput.addEventListener("change", () => {
+    try { localStorage.setItem("sacudidor_code", accessInput.value); } catch(e){}
+  });
+
+  const spinner = '<span class="dots"><span></span><span></span><span></span></span> pensando…';
+
+  function setBody(model, html, opts={}){
+    const el = document.getElementById("b-"+model);
+    el.innerHTML = html;
+    el.classList.toggle("placeholder", !!opts.placeholder);
+    el.classList.toggle("err", !!opts.error);
+  }
+  function setTime(model, txt){ document.getElementById("t-"+model).textContent = txt; }
+
+  async function askModel(model, hypothesis){
+    const start = performance.now();
+    setBody(model, spinner);
+    setTime(model, "");
+    try{
+      const r = await fetch("/api/critique", {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ hypothesis, model, accessCode: accessInput.value })
+      });
+      const data = await r.json();
+      const secs = ((performance.now()-start)/1000).toFixed(1);
+      setTime(model, secs+" s");
+      if(data.error){ setBody(model, "⚠ "+data.error, {error:true}); lastResponses[model]=null; }
+      else { setBody(model, escapeHtml(data.text)); lastResponses[model]=data.text; }
+    }catch(e){
+      setBody(model, "⚠ Error de red: "+e.message, {error:true});
+      lastResponses[model]=null;
+    }
+  }
+
+  async function shake(){
+    const hypothesis = hyp.value.trim();
+    if(!hypothesis){ hyp.focus(); return; }
+    // animación de sacudida
+    hbox.classList.remove("shaking"); void hbox.offsetWidth; hbox.classList.add("shaking");
+    // reset síntesis
+    synth.classList.remove("show");
+    compareBtn.disabled = true;
+    shakeBtn.disabled = true;
+    MODELS.forEach(m => { lastResponses[m]=undefined; });
+    // disparar los tres en paralelo (se llenan a distinta velocidad)
+    await Promise.all(MODELS.map(m => askModel(m, hypothesis)));
+    shakeBtn.disabled = false;
+    // habilitar comparar si al menos dos respondieron bien
+    const ok = MODELS.filter(m => lastResponses[m]).length;
+    compareBtn.disabled = ok < 2;
+  }
+
+  async function compare(){
+    compareBtn.disabled = true;
+    synth.classList.add("show");
+    setBody("synth", spinner);
+    try{
+      const r = await fetch("/api/synthesize", {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({
+          hypothesis: hyp.value.trim(),
+          responses: lastResponses,
+          accessCode: accessInput.value
+        })
+      });
+      const data = await r.json();
+      if(data.error) setBody("synth", "⚠ "+data.error, {error:true});
+      else setBody("synth", escapeHtml(data.text));
+    }catch(e){
+      setBody("synth", "⚠ Error de red: "+e.message, {error:true});
+    }finally{
+      compareBtn.disabled = false;
+    }
+  }
+
+  function escapeHtml(s){
+    return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  shakeBtn.addEventListener("click", shake);
+  compareBtn.addEventListener("click", compare);
+  // Ctrl/Cmd + Enter para sacudir rápido durante la presentación
+  hyp.addEventListener("keydown", e => {
+    if((e.metaKey||e.ctrlKey) && e.key==="Enter") shake();
+  });
+</script>
+</body>
+</html>
