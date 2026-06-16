@@ -49,7 +49,10 @@ export default async function handler(req, res) {
         MODELS.deepseek,
         SYSTEM_PROMPT,
         hypothesis,
-        { temperature: 0.7, max_tokens: 300 }
+        // DeepSeek V4 razona ("thinking") antes de responder y ese proceso consume
+        // tokens; por eso necesita un tope amplio. El límite real de 90 palabras lo
+        // marca el prompt, no este número.
+        { temperature: 0.7, max_tokens: 2000 }
       );
     } else if (model === "gpt") {
       text = await callOpenAICompatible(
